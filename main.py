@@ -63,7 +63,9 @@ Please answer based on the document and your knowledge of Indian mining regulati
 
 User's question: {query}
 
-Please provide accurate information about Indian mining regulations in a well concised structured details."""
+Please provide accurate information about Indian mining regulations in a well concised structured details. 
+look closely at whats the query, dont just give generic response and out of context.
+you can greet at starting but keep it short and to the point and remind user thatc im for specific task."""
 
     try:
         stream = client.chat.completions.create(
@@ -80,7 +82,6 @@ Please provide accurate information about Indian mining regulations in a well co
             temperature=0.7,
         )
 
-        # Stream the response
         citations = []
         for chunk in stream:
             if chunk.choices[0].delta.content:
@@ -118,7 +119,6 @@ async def chat_endpoint(request: ChatRequest):
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"File processing error: {str(e)}")
     
-    # Return streaming response
     return StreamingResponse(
         generate_stream(request.query, extracted_text),
         media_type="text/plain"
