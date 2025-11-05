@@ -65,7 +65,7 @@ User's question: {query}
 
 Please provide accurate information about Indian mining regulations in a well concised structured details. 
 look closely at whats the query, dont just give generic response and out of context.
-you can greet at starting but keep it short and to the point and remind user thatc im for specific task."""
+you can greet at starting but keep it short and to the point and remind user that im for specific task."""
 
     try:
         stream = client.chat.completions.create(
@@ -125,7 +125,7 @@ async def chat_endpoint(request: ChatRequest):
     )
 
 from fastapi.middleware.cors import CORSMiddleware
-allowed_origins = ["http://localhost:3000"]
+allowed_origins = ["http://st:3000"]
 production_url = os.getenv("SITE_URL")
 if production_url and production_url not in allowed_origins:
     allowed_origins.append(production_url)
