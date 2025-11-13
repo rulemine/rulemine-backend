@@ -125,14 +125,10 @@ async def chat_endpoint(request: ChatRequest):
     )
 
 from fastapi.middleware.cors import CORSMiddleware
-allowed_origins = ["http://st:3000"]
-production_url = os.getenv("SITE_URL")
-if production_url and production_url not in allowed_origins:
-    allowed_origins.append(production_url)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
