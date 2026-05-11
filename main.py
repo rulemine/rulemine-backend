@@ -107,8 +107,10 @@ async def chat_endpoint(request: ChatRequest):
     # If file is uploaded, extract text
     if request.file:
         try:
-            # Decode base64 file data
-            file_bytes = base64.b64decode(request.file.data)
+            # Decode base64 file data (add padding if missing)
+            file_data = request.file.data
+            file_data += "=" * (-len(file_data) % 4)  # fix padding
+            file_bytes = base64.b64decode(file_data)
             
             # Extract text based on file type
             if request.file.mediaType == "application/pdf":
