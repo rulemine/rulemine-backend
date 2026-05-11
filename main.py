@@ -125,7 +125,12 @@ async def chat_endpoint(request: ChatRequest):
     )
 
 from fastapi.middleware.cors import CORSMiddleware
-allowed_origins = ["http://st:3000"]
+allowed_origins = [
+    "http://localhost:3000",
+    "https://rulemine.vercel.app",
+    "https://rulemine-full.vercel.app",
+]
+# Also allow any custom SITE_URL from env
 production_url = os.getenv("SITE_URL")
 if production_url and production_url not in allowed_origins:
     allowed_origins.append(production_url)
