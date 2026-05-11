@@ -70,10 +70,10 @@ you can greet at starting but keep it short and to the point and remind user tha
     try:
         stream = client.chat.completions.create(
             extra_headers={
-                "HTTP-Referer": os.getenv("SITE_URL", "http://localhost:3000"),
+                "HTTP-Referer": "https://rulemine.vercel.app",
                 "X-Title": "Rulemine Chatbot",
             },
-            model="meta-llama/llama-4-maverick:free",
+            model="google/gemma-4-27b-it:free",
             messages=[
                 {"role": "system", "content": "You are an expert on Indian mining laws and regulations."},
                 {"role": "user", "content": prompt}
@@ -130,10 +130,6 @@ allowed_origins = [
     "https://rulemine.vercel.app",
     "https://rulemine-full.vercel.app",
 ]
-# Also allow any custom SITE_URL from env
-production_url = os.getenv("SITE_URL")
-if production_url and production_url not in allowed_origins:
-    allowed_origins.append(production_url)
 
 app.add_middleware(
     CORSMiddleware,
