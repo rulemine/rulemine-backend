@@ -73,7 +73,7 @@ you can greet at starting but keep it short and to the point and remind user tha
                 "HTTP-Referer": "https://rulemine.vercel.app",
                 "X-Title": "Rulemine Chatbot",
             },
-            model="google/gemma-4-27b-it:free",
+            model="meta-llama/llama-3.3-70b-instruct:free",
             messages=[
                 {"role": "system", "content": "You are an expert on Indian mining laws and regulations."},
                 {"role": "user", "content": prompt}
@@ -104,20 +104,21 @@ async def chat_endpoint(request: ChatRequest):
     
     extracted_text = None
     
-    # If file is uploaded, extract text
-    if request.file:
+    # If file is uploaded, extract text (file is optional)
+    if request.file and request.file.data and request.file.data not in ("", "string"):
         try:
+            # Check if it's a PDF
+            if "pdf" not in request.file.mediaType.lower():
+                raise HTTPException(status_code=400, detail="Only PDF files are supported")
+            
             # Decode base64 file data (add padding if missing)
             file_data = request.file.data
-            file_data += "=" * (-len(file_data) % 4)  # fix padding
+            file_data += "=" * (-len(file_data) % 4)
             file_bytes = base64.b64decode(file_data)
-            
-            # Extract text based on file type
-            if request.file.mediaType == "application/pdf":
-                extracted_text = extract_text_from_pdf(file_bytes)
-            else:
-                raise HTTPException(status_code=400, detail="Only PDF files are supported")
+            extracted_text = extract_text_from_pdf(file_bytes)
                 
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"File processing error: {str(e)}")
     
