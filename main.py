@@ -81,33 +81,52 @@ Please answer based on the document and your knowledge of Indian mining regulati
     
     messages.append({"role": "user", "content": current_msg})
 
-    try:
-        stream = client.chat.completions.create(
-            extra_headers={
-                "HTTP-Referer": "https://rulemine.vercel.app",
-                "X-Title": "Rulemine Chatbot",
-            },
-            model="meta-llama/llama-3.3-70b-instruct:free",
-            messages=messages,
-            stream=True,
-            temperature=0.7,
-        )
+    # Try multiple models in case one is rate-limited
+    models = [
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "google/gemma-4-31b-it:free",
+        "meta-llama/llama-3.2-3b-instruct:free",
+    ]
+    
+    last_error = None
+    for model in models:
+        try:
+            stream = client.chat.completions.create(
+                extra_headers={
+                    "HTTP-Referer": "https://rulemine.vercel.app",
+                    "X-Title": "Rulemine Chatbot",
+                },
+                model=model,
+                messages=messages,
+                stream=True,
+                temperature=0.7,
+            )
 
-        citations = []
-        for chunk in stream:
-            if chunk.choices[0].delta.content:
-                content = chunk.choices[0].delta.content
-                yield content
-        
-        # Optionally add citations at the end
-        if extracted_text:
-            citations.append(f"Source: {extracted_text[:100]}...")
-        
-        if citations:
-            yield f"\n\nCITATIONS: {json.dumps(citations)}"
+            citations = []
+            for chunk in stream:
+                if chunk.choices[0].delta.content:
+                    content = chunk.choices[0].delta.content
+                    yield content
             
-    except Exception as e:
-        yield f"Error: {str(e)}"
+            # Optionally add citations at the end
+            if extracted_text:
+                citations.append(f"Source: {extracted_text[:100]}...")
+            
+            if citations:
+                yield f"\n\nCITATIONS: {json.dumps(citations)}"
+            
+            return  # Success, stop trying other models
+                
+        except Exception as e:
+            last_error = str(e)
+            if "429" in last_error or "rate" in last_error.lower():
+                continue  # Try next model
+            else:
+                yield f"Sorry, something went wrong. Please try again in a moment."
+                return
+    
+    # All models rate-limited
+    yield "The service is temporarily busy due to high demand. Please wait a minute and try again."
 
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
