@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 import base64
 import json
 import PyPDF2
@@ -28,9 +28,14 @@ class FilePayload(BaseModel):
     mediaType: str
     filename: str
 
+class HistoryMessage(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
 class ChatRequest(BaseModel):
     query: str
     file: Optional[FilePayload] = None
+    history: Optional[List[HistoryMessage]] = None
 
 def extract_text_from_pdf(file_data: bytes) -> str:
     """Extract text from PDF bytes using PyPDF2"""
@@ -46,26 +51,35 @@ def extract_text_from_pdf(file_data: bytes) -> str:
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error extracting PDF: {str(e)}")
 
-async def generate_stream(query: str, extracted_text: Optional[str] = None):
-    """Generate streaming response from OpenRouter API"""
+SYSTEM_PROMPT = """You are an expert on Indian mining laws and regulations (MMDR Act, MCDR 2017, DGMS circulars, IBM guidelines).
+You provide accurate, concise, and well-structured information about Indian mining regulations.
+Look closely at what the user is asking — don't give generic or out-of-context responses.
+You can greet briefly but stay focused on your area of expertise.
+If the user uploads a document, use its content to answer their questions.
+Remember the full conversation context and refer back to earlier messages when relevant."""
+
+async def generate_stream(query: str, history: List[dict], extracted_text: Optional[str] = None):
+    """Generate streaming response from OpenRouter API with full conversation context"""
     
+    # Build the messages array with conversation history
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    
+    # Add conversation history (previous messages)
+    for msg in history:
+        messages.append({"role": msg["role"], "content": msg["content"]})
+    
+    # Build the current user message
     if extracted_text:
-        prompt = f"""You are a helpful assistant for Indian mining law compliance (MMDR, MCDR, DGMS).
-        
-User has uploaded a document with the following content:
-{extracted_text[:4000]}  # Limit context to avoid token overflow
+        current_msg = f"""User has uploaded a document with the following content:
+{extracted_text[:4000]}
 
 User's question: {query}
 
 Please answer based on the document and your knowledge of Indian mining regulations."""
     else:
-        prompt = f"""You are a helpful assistant for Indian mining law compliance (MMDR, MCDR, DGMS).
-
-User's question: {query}
-
-Please provide accurate information about Indian mining regulations in a well concised structured details. 
-look closely at whats the query, dont just give generic response and out of context.
-you can greet at starting but keep it short and to the point and remind user that im for specific task."""
+        current_msg = query
+    
+    messages.append({"role": "user", "content": current_msg})
 
     try:
         stream = client.chat.completions.create(
@@ -74,10 +88,7 @@ you can greet at starting but keep it short and to the point and remind user tha
                 "X-Title": "Rulemine Chatbot",
             },
             model="meta-llama/llama-3.3-70b-instruct:free",
-            messages=[
-                {"role": "system", "content": "You are an expert on Indian mining laws and regulations."},
-                {"role": "user", "content": prompt}
-            ],
+            messages=messages,
             stream=True,
             temperature=0.7,
         )
@@ -100,7 +111,7 @@ you can greet at starting but keep it short and to the point and remind user tha
 
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
-    """Main chat endpoint that handles text and file input"""
+    """Main chat endpoint that handles text, file input, and conversation history"""
     
     extracted_text = None
     
@@ -122,8 +133,13 @@ async def chat_endpoint(request: ChatRequest):
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"File processing error: {str(e)}")
     
+    # Build history from request (default to empty)
+    history = []
+    if request.history:
+        history = [{"role": msg.role, "content": msg.content} for msg in request.history]
+    
     return StreamingResponse(
-        generate_stream(request.query, extracted_text),
+        generate_stream(request.query, history, extracted_text),
         media_type="text/plain"
     )
 
@@ -131,7 +147,6 @@ from fastapi.middleware.cors import CORSMiddleware
 allowed_origins = [
     "http://localhost:3000",
     "https://rulemine.vercel.app",
-    "https://rulemine-full.vercel.app",
 ]
 
 app.add_middleware(
