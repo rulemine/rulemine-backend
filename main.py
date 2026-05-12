@@ -87,7 +87,7 @@ Please answer based on the document and your knowledge of Indian mining regulati
                 "HTTP-Referer": "https://rulemine.vercel.app",
                 "X-Title": "Rulemine Chatbot",
             },
-            model="google/gemma-4-31b-it:free",
+            model="meta-llama/llama-3-8b-instruct:free",
             messages=messages,
             stream=True,
             temperature=0.7,
